@@ -3,6 +3,7 @@ import { defineConfig } from "vite";
 import visualizer from "rollup-plugin-visualizer";
 import viteCompression from "vite-plugin-compression";
 import VueDevTools from "vite-plugin-vue-devtools";
+import { VitePWA } from 'vite-plugin-pwa'; // Import the PWA plugin
 
 const postCssScss = require("postcss-scss");
 const postcssRTLCSS = require("postcss-rtlcss");
@@ -34,6 +35,33 @@ export default defineConfig({
             filter: viteCompressionFilter,
         }),
         VueDevTools(),
+        VitePWA({  // Add the PWA plugin
+            manifest: {
+                name: 'Uptime Kuma',
+                short_name: 'Kuma',
+                description: 'Self-hosted monitoring tool',
+                theme_color: '#1976d2',
+                background_color: '#ffffff',
+                display: 'standalone',
+                start_url: '/dashboard',
+                icons: [
+                    {
+                        src: '/icon-192x192.png',
+                        sizes: '192x192',
+                        type: 'image/png'
+                    },
+                    {
+                        src: '/icon-512x512.png',
+                        sizes: '512x512',
+                        type: 'image/png'
+                    }
+                ]
+            },
+            registerType: 'autoUpdate',
+            devOptions: {
+                enabled: true, // This is for development mode
+            },
+        }),
     ],
     css: {
         postcss: {
