@@ -101,7 +101,7 @@ log.debug("server", "Importing Database");
 const Database = require("./database");
 
 log.debug("server", "Importing Background Jobs");
-const { initBackgroundJobs, stopBackgroundJobs } = require("./jobs");
+const { MonitorJob } = require("./monitor-jobs");
 const { loginRateLimiter, twoFaRateLimiter } = require("./rate-limiter");
 
 const { apiAuth } = require("./auth");
@@ -1004,7 +1004,7 @@ let needSetup = false;
                     monitorID,
                     socket.userID,
                 ]);
-
+                await MonitorJob.removeScheduledJob(monitorID);
                 // Fix #2880
                 apicache.clear();
 
@@ -1571,11 +1571,10 @@ let needSetup = false;
         } else {
             log.info("server", `Listening on ${port}`);
         }
+        MonitorJob.startWorkers();
         startMonitors();
         checkVersion.startInterval();
     });
-
-    await initBackgroundJobs();
 
     // Start cloudflared at the end if configured
     await cloudflaredAutoStart(cloudflaredToken);
@@ -1729,7 +1728,7 @@ async function startMonitor(userID, monitorID) {
     }
 
     server.monitorList[monitor.id] = monitor;
-    await monitor.start(io);
+    await MonitorJob.scheduleJob(monitor);
 }
 
 /**
@@ -1772,13 +1771,8 @@ async function startMonitors() {
     let list = await R.find("monitor", " active = 1 ");
 
     for (let monitor of list) {
+        await MonitorJob.scheduleJob(monitor);
         server.monitorList[monitor.id] = monitor;
-    }
-
-    for (let monitor of list) {
-        await monitor.start(io);
-        // Give some delays, so all monitors won't make request at the same moment when just start the server.
-        await sleep(getRandomInt(300, 1000));
     }
 }
 
@@ -1793,12 +1787,6 @@ async function shutdownFunction(signal) {
     log.info("server", "Called signal: " + signal);
 
     await server.stop();
-
-    log.info("server", "Stopping all monitors");
-    for (let id in server.monitorList) {
-        let monitor = server.monitorList[id];
-        await monitor.stop();
-    }
     await sleep(2000);
     await Database.close();
 
@@ -1806,7 +1794,6 @@ async function shutdownFunction(signal) {
         EmbeddedMariaDB.getInstance().stop();
     }
 
-    stopBackgroundJobs();
     await cloudflaredStop();
     Settings.stopCacheCleaner();
 }

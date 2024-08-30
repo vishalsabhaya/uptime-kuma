@@ -13,6 +13,7 @@ const childProcessAsync = require("promisify-child-process");
 const path = require("path");
 const axios = require("axios");
 const { isSSL, sslKey, sslCert, sslKeyPassphrase } = require("./config");
+const { socketIoRedisAdapter } = require("./redis-setting");
 // DO NOT IMPORT HERE IF THE MODULES USED `UptimeKumaServer.getInstance()`, put at the bottom of this file instead.
 
 /**
@@ -126,6 +127,7 @@ class UptimeKumaServer {
 
         this.io = new Server(this.httpServer, {
             cors,
+            adapter: socketIoRedisAdapter,
             allowRequest: async (req, callback) => {
                 let transport;
                 // It should be always true, but just in case, because this property is not documented

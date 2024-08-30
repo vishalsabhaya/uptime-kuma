@@ -314,10 +314,9 @@ class Monitor extends BeanModel {
      * @param {Server} io Socket server instance
      * @returns {Promise<void>}
      */
-    async start(io) {
+    async start(io, job) {
         let previousBeat = null;
-        let retries = 0;
-
+        let retries = job.attemptsMade;
         this.prometheus = new Prometheus(this);
 
         const beat = async () => {
@@ -966,20 +965,20 @@ class Monitor extends BeanModel {
 
             previousBeat = bean;
 
-            if (! this.isStop) {
-                log.debug("monitor", `[${this.name}] SetTimeout for next check.`);
+            // if (! this.isStop) {
+            //     // log.debug("monitor", `[${this.name}] SetTimeout for next check.`);
 
-                let intervalRemainingMs = Math.max(
-                    1,
-                    beatInterval * 1000 - dayjs().diff(dayjs.utc(bean.time))
-                );
+            //     let intervalRemainingMs = Math.max(
+            //         1,
+            //         beatInterval * 1000 - dayjs().diff(dayjs.utc(bean.time))
+            //     );
 
-                log.debug("monitor", `[${this.name}] Next heartbeat in: ${intervalRemainingMs}ms`);
+            //     // log.debug("monitor", `[${this.name}] Next heartbeat in: ${intervalRemainingMs}ms`);
 
-                this.heartbeatInterval = setTimeout(safeBeat, intervalRemainingMs);
-            } else {
-                log.info("monitor", `[${this.name}] isStop = true, no next check.`);
-            }
+            //     this.heartbeatInterval = setTimeout(safeBeat, intervalRemainingMs);
+            // } else {
+            //     log.info("monitor", `[${this.name}] isStop = true, no next check.`);
+            // }
 
         };
 
@@ -990,26 +989,27 @@ class Monitor extends BeanModel {
         const safeBeat = async () => {
             try {
                 await beat();
+                this.prometheus?.remove();
             } catch (e) {
                 console.trace(e);
                 UptimeKumaServer.errorLog(e, false);
                 log.error("monitor", "Please report to https://github.com/louislam/uptime-kuma/issues");
 
-                if (! this.isStop) {
-                    log.info("monitor", "Try to restart the monitor");
-                    this.heartbeatInterval = setTimeout(safeBeat, this.interval * 1000);
-                }
+                // if (! this.isStop) {
+                //     log.info("monitor", "Try to restart the monitor");
+                //     this.heartbeatInterval = setTimeout(safeBeat, this.interval * 1000);
+                // }
             }
         };
 
-        // Delay Push Type
-        if (this.type === "push") {
-            setTimeout(() => {
-                safeBeat();
-            }, this.interval * 1000);
-        } else {
+        // // Delay Push Type
+        // if (this.type === "push") {
+        //     setTimeout(() => {
+        //         safeBeat();
+        //     }, this.interval * 1000);
+        // } else {
             safeBeat();
-        }
+        // }
     }
 
     /**
@@ -1074,7 +1074,7 @@ class Monitor extends BeanModel {
      * @returns {Promise<void>}
      */
     async stop() {
-        clearTimeout(this.heartbeatInterval);
+        // clearTimeout(this.heartbeatInterval);
         this.isStop = true;
 
         this.prometheus?.remove();
